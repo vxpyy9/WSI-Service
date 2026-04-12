@@ -38,16 +38,16 @@ class PathsMapper(BaseMapper):
             case_id = f"{context}/{d}"
             case_path = os.path.join(abs_context_path, d)
 
-            # If the directory itself is a supported format (e.g. DICOM),
-            # treat it as a slide rather than a case directory
             if is_supported_format(case_path):
-                slide_ids = [case_id]
-            else:
-                slide_ids = []
-                for file in os.listdir(case_path):
-                    absfile = os.path.join(case_path, file)
-                    if (os.path.isfile(absfile) or os.path.isdir(absfile)) and is_supported_format(absfile):
-                        slide_ids.append(f"{case_id}/{file}")
+                # Slide directory (e.g. DICOM) appears as a slide in the parent case, not as a case itself.
+                continue
+
+            # Regular case directory
+            slide_ids = []
+            for file in os.listdir(case_path):
+                absfile = os.path.join(case_path, file)
+                if is_supported_format(absfile):
+                    slide_ids.append(f"{case_id}/{file}")
 
             cases.append(
                 CaseLocalMapper(
@@ -66,8 +66,7 @@ class PathsMapper(BaseMapper):
         if not os.path.isdir(abs_case_path):
             raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found")
 
-        # If the case directory itself is a supported format (e.g. DICOM),
-        # it is the slide - return it directly
+        # If the case directory is itself a slide (e.g. DICOM), return it directly.
         if is_supported_format(abs_case_path):
             slide_id = case_id
             addresses = local_mode_collect_secondary_files_v3(abs_case_path, slide_id, slide_id, self.data_dir)
@@ -82,8 +81,6 @@ class PathsMapper(BaseMapper):
         slides = []
         for file in sorted(os.listdir(abs_case_path)):
             absfile = os.path.join(abs_case_path, file)
-            if not os.path.isfile(absfile):
-                continue
             if is_supported_format(absfile):
                 slide_id = f"{case_id}/{file}"
                 addresses = local_mode_collect_secondary_files_v3(absfile, slide_id, slide_id, self.data_dir)
